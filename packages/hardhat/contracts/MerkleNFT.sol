@@ -9,14 +9,11 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 // Multiple bases used to give user choice in the interactive mint
 // by Hidden Lotus Tech
 
-contract MerkleInteractiveNFT is ERC721, Ownable {
+contract MerkleNFT is ERC721, Ownable {
     using Strings for uint256;
-    using Counters for Counters.Counter; // Saves gas vs the traditional ERC-721Enumerable 
+    using Counters for Counters.Counter; // Saves gas vs the traditional ERC-721Enumerable
 
     Counters.Counter private supply;
-    Counters.Counter private baseOneSupply;
-    Counters.Counter private baseTwoSupply;
-    Counters.Counter private baseThreeSupply;
 
     bool public paused;
     bool public revealed;
@@ -24,23 +21,22 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
     bool public freesale;
 
     uint256 public constant maxSupply = 8888;
-    uint256 public constant baseOneMaxSupply = 3333;
-    uint256 public constant baseTwoMaxSupply = 3333;
-    uint256 public constant baseThreeMaxSupply = 2222;
 
     uint256 public cost = 0.03 ether;
 
-    uint256 public maxMintAmountPerTx = 30; 
+    uint256 public maxMintAmountPerTx = 30;
     uint256 public maxPerPresaleAddress = 9; // It is possible to use non-universal amounts for these limits with the merkle proofs
     uint256 public maxPerFreesaleAddress = 1; // But I have them set up to be universal.
     uint256 public reserveCount;
     uint256 public reserveLimit = 888;
-    
+
     // withdrawal addresses
-    address public constant devAddress = 0x9C0aC9D88DE0c9AF72Cb7d5Cc4929289110E5BE9;
+    address public constant devAddress =
+        0x9C0aC9D88DE0c9AF72Cb7d5Cc4929289110E5BE9;
     // address public constant dev2Address = 0x...;
     // address public constant artistAddress = 0x...;
-    address public constant communityAddress = 0x9C0aC9D88DE0c9AF72Cb7d5Cc4929289110E5BE9;
+    address public constant communityAddress =
+        0x9C0aC9D88DE0c9AF72Cb7d5Cc4929289110E5BE9;
 
     bytes32 public presaleMerkle;
     bytes32 public freesaleMerkle;
@@ -52,15 +48,11 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
     mapping(address => uint256) public presaleClaimed;
     mapping(address => uint256) public freesaleClaimed;
 
-    mapping(uint256 => uint256) public tokenIdsToBase; // used to keep track of the bases chosen for each mint to build the metadata 
-
     constructor(
-        string memory _uriHidden, 
-        bytes32 _presaleMerkle, 
+        string memory _uriHidden,
+        bytes32 _presaleMerkle,
         bytes32 _freesaleMerkle
-    )
-        ERC721("MerkleInteractiveNFT", "HLTINFT")
-    {
+    ) ERC721("MerkleNFT", "HLTNFT") {
         uriHidden = _uriHidden;
         presaleMerkle = _presaleMerkle;
         freesaleMerkle = _freesaleMerkle;
@@ -73,8 +65,7 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
         freesale = true;
     }
 
-    modifier mintCompliance(uint256[3] memory mintAmounts) {
-        uint256 mintCount = (mintAmounts[0] + mintAmounts[1] + mintAmounts[2]);
+    modifier mintCompliance(uint256 memory mintCount) {
         require(!paused, "The sale is paused.");
         require(mintCount > 0, "Mint count must be greater than 0.");
         require(
@@ -86,33 +77,21 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
             "Would exceed max supply."
         );
         require(
-            supply.current() + mintCount <= maxSupply - (reserveLimit - reserveCount),
+            supply.current() + mintCount <=
+                maxSupply - (reserveLimit - reserveCount),
             "Exceeds max supply + reserve."
-        );
-        require(
-            baseOneMaxSupply >= baseOneSupply.current() + mintAmounts[0],
-            "Not enough base one left."
-        );
-        require(
-            baseTwoMaxSupply >= baseTwoSupply.current() + mintAmounts[1],
-            "Not enough base two left."
-        );
-        require(
-            baseThreeMaxSupply >= baseThreeSupply.current() + mintAmounts[2],
-            "Not enough base three left."
         );
         _;
     }
 
     function mintPresale(
         address account,
-        uint256[3] memory mintAmounts,
+        uint256 memory mintCount,
         bytes32[] calldata merkleProof
-    ) public payable mintCompliance(mintAmounts) {
+    ) public payable mintCompliance(mintCount) {
         bytes32 node = keccak256(
             abi.encodePacked(account, maxPerPresaleAddress)
         );
-        uint256 mintCount = (mintAmounts[0] + mintAmounts[1] + mintAmounts[2]);
         require(presale, "No presale minting currently.");
         require(msg.value >= cost * mintCount, "Insufficient funds.");
         require(
@@ -123,20 +102,19 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
             MerkleProof.verify(merkleProof, presaleMerkle, node),
             "Invalid proof."
         );
-        _mintLoop(account, mintAmounts);
+        _mintLoop(account, mintCount);
         presaleClaimed[account] += mintCount;
     }
 
     function mintFreesale(
         address account,
-        uint256[3] memory mintAmounts,
+        uint256 memory mintCount,
         bytes32[] calldata merkleProof
-    ) public mintCompliance(mintAmounts) {
+    ) public mintCompliance(mintCount) {
         bytes32 node = keccak256(
             abi.encodePacked(account, maxPerFreesaleAddress)
         );
-        uint256 mintCount = (mintAmounts[0] + mintAmounts[1] + mintAmounts[2]);
-        require(freesale, "No freesale minting currently."); 
+        require(freesale, "No freesale minting currently.");
         require(mintCount == 1, "Only 1 free.");
         require(
             freesaleClaimed[account] + mintCount <= maxPerFreesaleAddress,
@@ -146,54 +124,38 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
             MerkleProof.verify(merkleProof, freesaleMerkle, node),
             "Invalid proof."
         );
-        _mintLoop(account, mintAmounts);
+        _mintLoop(account, mintCount);
         freesaleClaimed[account] += mintCount;
     }
 
-    function mint(uint256[3] memory mintAmounts)
+    function mint(uint256 memory mintCount)
         public
         payable
-        mintCompliance(mintAmounts)
+        mintCompliance(mintCount)
     {
-        uint256 mintCount = (mintAmounts[0] + mintAmounts[1] + mintAmounts[2]);
         require(!presale, "Only presale minting currently.");
         require(msg.value >= cost * mintCount, "Insufficient funds.");
-        _mintLoop(msg.sender, mintAmounts);
+        _mintLoop(msg.sender, mintCount);
     }
 
-    function mintForAddress(uint256[3] memory mintAmounts, address _receiver)
+    function mintForAddress(uint256 memory mintCount, address _receiver)
         public
-        mintCompliance(mintAmounts)
+        mintCompliance(mintCount)
         onlyOwner
     {
-        uint256 mintCount = (mintAmounts[0] + mintAmounts[1] + mintAmounts[2]);
         require(
             reserveCount + mintCount <= reserveLimit,
             "Exceeds max reserved."
         );
-        _mintLoop(_receiver, mintAmounts);
+        _mintLoop(_receiver, mintCount);
         reserveCount += mintCount;
     }
 
-    function _mintLoop(address _receiver, uint256[3] memory mintAmounts)
+    function _mintLoop(address _receiver, uint256 memory mintAmounts)
         internal
     {
-        for (uint256 i = 0; i < mintAmounts[0]; i++) {
+        for (uint256 i = 0; i < mintAmounts; i++) {
             supply.increment();
-            baseOneSupply.increment();
-            tokenIdsToBase[supply.current()] = 0;
-            _safeMint(_receiver, supply.current());
-        }
-        for (uint256 i = 0; i < mintAmounts[1]; i++) {
-            supply.increment();
-            baseTwoSupply.increment();
-            tokenIdsToBase[supply.current()] = 1;
-            _safeMint(_receiver, supply.current());
-        }
-        for (uint256 i = 0; i < mintAmounts[2]; i++) {
-            supply.increment();
-            baseThreeSupply.increment();
-            tokenIdsToBase[supply.current()] = 2;
             _safeMint(_receiver, supply.current());
         }
     }
@@ -210,28 +172,18 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
             "ERC721Metadata: URI query for nonexistent token."
         );
         if (revealed == false) {
-            string memory baseId;
-            string memory currentHiddenURI = uriHidden;
-            if (tokenIdsToBase[_tokenId] == 0) {
-                baseId = "baseOne";
-            } else if (tokenIdsToBase[_tokenId] == 1) {
-                baseId = "baseTwo";
-            } else {
-                baseId = "baseThree";
-            }
             return
-                bytes(currentHiddenURI).length > 0
+                bytes(uriHidden).length > 0
                     ? string(
-                        abi.encodePacked(currentHiddenURI, baseId, uriSuffix)
+                        abi.encodePacked(uriHidden, _tokenId, uriSuffix)
                     )
                     : "INVALID";
         }
-        string memory currentBaseURI = uriPrefix;
         return
-            bytes(currentBaseURI).length > 0
+            bytes(uriPrefix).length > 0
                 ? string(
                     abi.encodePacked(
-                        currentBaseURI,
+                        uriPrefix,
                         _tokenId.toString(),
                         uriSuffix
                     )
@@ -241,18 +193,6 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
 
     function totalSupply() public view returns (uint256) {
         return supply.current();
-    }
-
-    function baseOneTotalSupply() public view returns (uint256) {
-        return baseOneSupply.current();
-    }
-
-    function baseTwoTotalSupply() public view returns (uint256) {
-        return baseTwoSupply.current();
-    }
-
-    function baseThreeTotalSupply() public view returns (uint256) {
-        return baseThreeSupply.current();
     }
 
     function walletOfOwner(address _owner)
@@ -302,7 +242,8 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
         cost = _cost;
     }
 
-    function setReserveLimit(uint256 _limit) public onlyOwner { // This function may be frowned upon
+        // This function may be frowned upon
+    function setReserveLimit(uint256 _limit) public onlyOwner {
         reserveLimit = _limit;
     }
 
