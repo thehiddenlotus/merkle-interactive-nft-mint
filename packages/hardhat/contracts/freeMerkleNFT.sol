@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 // Multiple bases used to give user choice in the interactive mint
 // by Hidden Lotus Tech
 
-contract MerkleNFT is ERC721, Ownable {
+contract freeMerkleNFT is ERC721, Ownable {
     using Strings for uint256;
     using Counters for Counters.Counter; // Saves gas vs the traditional ERC-721Enumerable
 
@@ -18,23 +18,16 @@ contract MerkleNFT is ERC721, Ownable {
     bool public paused;
     bool public revealed;
     bool public presale;
-    bool public freesale;
 
     uint256 public constant maxSupply = 8888;
 
-    uint256 public cost = 0.03 ether;
-
-    uint256 public maxMintAmountPerTx = 30;
+    uint256 public maxMintAmountPerTx = 8;
     uint256 public maxPerPresaleAddress = 9; // It is possible to use non-universal amounts for these limits with the merkle proofs
     uint256 public maxPerFreesaleAddress = 1; // But I have them set up to be universal.
     uint256 public reserveCount;
     uint256 public reserveLimit = 888;
 
     // withdrawal addresses
-    address public constant devAddress =
-        0x9C0aC9D88DE0c9AF72Cb7d5Cc4929289110E5BE9;
-    // address public constant dev2Address = 0x...;
-    // address public constant artistAddress = 0x...;
     address public constant communityAddress =
         0x9C0aC9D88DE0c9AF72Cb7d5Cc4929289110E5BE9;
 
@@ -62,16 +55,10 @@ contract MerkleNFT is ERC721, Ownable {
         paused = true;
         revealed = false;
         presale = true;
-        freesale = true;
     }
 
-    modifier mintCompliance(uint256 memory mintCount) {
-        require(!paused, "The sale is paused.");
+    modifier mintCompliance(uint256 mintCount) {
         require(mintCount > 0, "Mint count must be greater than 0.");
-        require(
-            mintCount <= maxMintAmountPerTx,
-            "Invalid mint amount. Extends transaction limit."
-        );
         require(
             supply.current() + mintCount <= maxSupply,
             "Would exceed max supply."
@@ -84,16 +71,29 @@ contract MerkleNFT is ERC721, Ownable {
         _;
     }
 
+    modifier publicCompliance(uint256 mintCount) {
+        require(!paused, "The sale is paused.");
+        require(
+            mintCount <= maxMintAmountPerTx,
+            "Invalid mint amount. Extends transaction limit."
+        );
+        _;
+    }
+
     function mintPresale(
         address account,
-        uint256 memory mintCount,
+        uint256 mintCount,
         bytes32[] calldata merkleProof
-    ) public payable mintCompliance(mintCount) {
+    ) 
+        public 
+        payable 
+        mintCompliance(mintCount) 
+        publicCompliance(mintCount) 
+    {
         bytes32 node = keccak256(
             abi.encodePacked(account, maxPerPresaleAddress)
         );
         require(presale, "No presale minting currently.");
-        require(msg.value >= cost * mintCount, "Insufficient funds.");
         require(
             presaleClaimed[account] + mintCount <= maxPerPresaleAddress,
             "Exceeds max mints for presale."
@@ -106,39 +106,17 @@ contract MerkleNFT is ERC721, Ownable {
         presaleClaimed[account] += mintCount;
     }
 
-    function mintFreesale(
-        address account,
-        uint256 memory mintCount,
-        bytes32[] calldata merkleProof
-    ) public mintCompliance(mintCount) {
-        bytes32 node = keccak256(
-            abi.encodePacked(account, maxPerFreesaleAddress)
-        );
-        require(freesale, "No freesale minting currently.");
-        require(mintCount == 1, "Only 1 free.");
-        require(
-            freesaleClaimed[account] + mintCount <= maxPerFreesaleAddress,
-            "Exceeds max mints for presale."
-        );
-        require(
-            MerkleProof.verify(merkleProof, freesaleMerkle, node),
-            "Invalid proof."
-        );
-        _mintLoop(account, mintCount);
-        freesaleClaimed[account] += mintCount;
-    }
-
-    function mint(uint256 memory mintCount)
+    function mint(uint256 mintCount)
         public
         payable
         mintCompliance(mintCount)
+        publicCompliance(mintCount)
     {
         require(!presale, "Only presale minting currently.");
-        require(msg.value >= cost * mintCount, "Insufficient funds.");
         _mintLoop(msg.sender, mintCount);
     }
 
-    function mintForAddress(uint256 memory mintCount, address _receiver)
+    function mintForAddress(uint256 mintCount, address _receiver)
         public
         mintCompliance(mintCount)
         onlyOwner
@@ -151,9 +129,7 @@ contract MerkleNFT is ERC721, Ownable {
         reserveCount += mintCount;
     }
 
-    function _mintLoop(address _receiver, uint256 memory mintAmounts)
-        internal
-    {
+    function _mintLoop(address _receiver, uint256 mintAmounts) internal {
         for (uint256 i = 0; i < mintAmounts; i++) {
             supply.increment();
             _safeMint(_receiver, supply.current());
@@ -174,19 +150,13 @@ contract MerkleNFT is ERC721, Ownable {
         if (revealed == false) {
             return
                 bytes(uriHidden).length > 0
-                    ? string(
-                        abi.encodePacked(uriHidden, _tokenId, uriSuffix)
-                    )
+                    ? string(abi.encodePacked(uriHidden, _tokenId, uriSuffix))
                     : "INVALID";
         }
         return
             bytes(uriPrefix).length > 0
                 ? string(
-                    abi.encodePacked(
-                        uriPrefix,
-                        _tokenId.toString(),
-                        uriSuffix
-                    )
+                    abi.encodePacked(uriPrefix, _tokenId.toString(), uriSuffix)
                 )
                 : "INVALID";
     }
@@ -238,11 +208,7 @@ contract MerkleNFT is ERC721, Ownable {
         uriHidden = newUriHidden;
     }
 
-    function setCost(uint256 _cost) public onlyOwner {
-        cost = _cost;
-    }
-
-        // This function may be frowned upon
+    // This function may be frowned upon
     function setReserveLimit(uint256 _limit) public onlyOwner {
         reserveLimit = _limit;
     }
@@ -276,10 +242,6 @@ contract MerkleNFT is ERC721, Ownable {
         presale = _state;
     }
 
-    function setFreesale(bool _state) public onlyOwner {
-        freesale = _state;
-    }
-
     function setRevealed(bool _state) public onlyOwner {
         revealed = _state;
     }
@@ -287,9 +249,6 @@ contract MerkleNFT is ERC721, Ownable {
     function withdrawAll() public onlyOwner {
         uint256 balance = address(this).balance;
         require(balance > 0, "Insufficent balance");
-        _widthdraw(devAddress, ((balance * 15) / 100));
-        // _widthdraw(dev2Address, ((balance * 5) / 100));
-        // _widthdraw(artistAddress, ((balance * 5) / 100));
         _widthdraw(communityAddress, address(this).balance);
     }
 

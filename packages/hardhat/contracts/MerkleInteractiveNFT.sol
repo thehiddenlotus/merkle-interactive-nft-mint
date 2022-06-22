@@ -75,12 +75,7 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
 
     modifier mintCompliance(uint256[3] memory mintAmounts) {
         uint256 mintCount = (mintAmounts[0] + mintAmounts[1] + mintAmounts[2]);
-        require(!paused, "The sale is paused.");
         require(mintCount > 0, "Mint count must be greater than 0.");
-        require(
-            mintCount <= maxMintAmountPerTx,
-            "Invalid mint amount. Extends transaction limit."
-        );
         require(
             supply.current() + mintCount <= maxSupply,
             "Would exceed max supply."
@@ -104,11 +99,21 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
         _;
     }
 
+    modifier publicCompliance(uint256[3] memory mintAmounts) {
+        uint256 mintCount = (mintAmounts[0] + mintAmounts[1] + mintAmounts[2]);
+        require(!paused, "The sale is paused.");
+        require(
+            mintCount <= maxMintAmountPerTx,
+            "Invalid mint amount. Extends transaction limit."
+        );
+        _;
+    }
+
     function mintPresale(
         address account,
         uint256[3] memory mintAmounts,
         bytes32[] calldata merkleProof
-    ) public payable mintCompliance(mintAmounts) {
+    ) public payable mintCompliance(mintAmounts) publicCompliance(mintAmounts) {
         bytes32 node = keccak256(
             abi.encodePacked(account, maxPerPresaleAddress)
         );
@@ -131,7 +136,7 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
         address account,
         uint256[3] memory mintAmounts,
         bytes32[] calldata merkleProof
-    ) public mintCompliance(mintAmounts) {
+    ) public mintCompliance(mintAmounts) publicCompliance(mintAmounts) {
         bytes32 node = keccak256(
             abi.encodePacked(account, maxPerFreesaleAddress)
         );
@@ -154,6 +159,7 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
         public
         payable
         mintCompliance(mintAmounts)
+        publicCompliance(mintAmounts) 
     {
         uint256 mintCount = (mintAmounts[0] + mintAmounts[1] + mintAmounts[2]);
         require(!presale, "Only presale minting currently.");
