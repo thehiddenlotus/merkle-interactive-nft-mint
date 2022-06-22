@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 // Multiple bases used to give user choice in the interactive mint
 // by Hidden Lotus Tech
 
-contract FreeMerkleNFT is ERC721, Ownable {
+contract FreeNFT is ERC721, Ownable {
     using Strings for uint256;
     using Counters for Counters.Counter; // Saves gas vs the traditional ERC-721Enumerable
 
@@ -17,13 +17,10 @@ contract FreeMerkleNFT is ERC721, Ownable {
 
     bool public paused;
     bool public revealed;
-    bool public presale;
 
     uint256 public constant maxSupply = 8888;
 
     uint256 public maxMintAmountPerTx = 8;
-    uint256 public maxPerPresaleAddress = 9; // It is possible to use non-universal amounts for these limits with the merkle proofs
-    uint256 public maxPerFreesaleAddress = 1; // But I have them set up to be universal. These values must match in the script as well.
     uint256 public reserveCount;
     uint256 public reserveLimit = 888;
 
@@ -31,30 +28,19 @@ contract FreeMerkleNFT is ERC721, Ownable {
     address public constant communityAddress =
         0x9C0aC9D88DE0c9AF72Cb7d5Cc4929289110E5BE9;
 
-    bytes32 public presaleMerkle;
-    bytes32 public freesaleMerkle;
-
     string public uriPrefix;
     string public uriSuffix;
     string public uriHidden;
 
-    mapping(address => uint256) public presaleClaimed;
-    mapping(address => uint256) public freesaleClaimed;
-
     constructor(
-        string memory _uriHidden,
-        bytes32 _presaleMerkle,
-        bytes32 _freesaleMerkle
-    ) ERC721("FreeMerkleNFT", "HLTFMNFT") {
+        string memory _uriHidden
+    ) ERC721("FreeNFT", "HLTFNFT") {
         uriHidden = _uriHidden;
-        presaleMerkle = _presaleMerkle;
-        freesaleMerkle = _freesaleMerkle;
         uriPrefix = "UNREVEALED";
         uriSuffix = ".json";
         reserveCount = 0;
         paused = true;
         revealed = false;
-        presale = true;
     }
 
     modifier mintCompliance(uint256 mintCount) {
@@ -80,39 +66,12 @@ contract FreeMerkleNFT is ERC721, Ownable {
         _;
     }
 
-    function mintPresale(
-        address account,
-        uint256 mintCount,
-        bytes32[] calldata merkleProof
-    ) 
-        public 
-        payable 
-        mintCompliance(mintCount) 
-        publicCompliance(mintCount) 
-    {
-        bytes32 node = keccak256(
-            abi.encodePacked(account, maxPerPresaleAddress)
-        );
-        require(presale, "No presale minting currently.");
-        require(
-            presaleClaimed[account] + mintCount <= maxPerPresaleAddress,
-            "Exceeds max mints for presale."
-        );
-        require(
-            MerkleProof.verify(merkleProof, presaleMerkle, node),
-            "Invalid proof."
-        );
-        _mintLoop(account, mintCount);
-        presaleClaimed[account] += mintCount;
-    }
-
     function mint(uint256 mintCount)
         public
         payable
         mintCompliance(mintCount)
         publicCompliance(mintCount)
     {
-        require(!presale, "Only presale minting currently.");
         _mintLoop(msg.sender, mintCount);
     }
 
@@ -188,14 +147,6 @@ contract FreeMerkleNFT is ERC721, Ownable {
         return ownedTokenIds;
     }
 
-    function setPresaleMerkle(bytes32 newRoot) public onlyOwner {
-        presaleMerkle = newRoot;
-    }
-
-    function setFreesaleMerkle(bytes32 newRoot) public onlyOwner {
-        freesaleMerkle = newRoot;
-    }
-
     function setUriPrefix(string memory newUriPrefix) public onlyOwner {
         uriPrefix = newUriPrefix;
     }
@@ -213,20 +164,6 @@ contract FreeMerkleNFT is ERC721, Ownable {
         reserveLimit = _limit;
     }
 
-    function setMaxPerFreesaleAddress(uint256 _maxPerFreesaleAddress)
-        public
-        onlyOwner
-    {
-        maxPerFreesaleAddress = _maxPerFreesaleAddress;
-    }
-
-    function setMaxPerPresaleAddress(uint256 _maxPerPresaleAddress)
-        public
-        onlyOwner
-    {
-        maxPerPresaleAddress = _maxPerPresaleAddress;
-    }
-
     function setMaxMintAmountPerTx(uint256 _maxMintAmountPerTx)
         public
         onlyOwner
@@ -236,10 +173,6 @@ contract FreeMerkleNFT is ERC721, Ownable {
 
     function setPaused(bool _state) public onlyOwner {
         paused = _state;
-    }
-
-    function setPresale(bool _state) public onlyOwner {
-        presale = _state;
     }
 
     function setRevealed(bool _state) public onlyOwner {

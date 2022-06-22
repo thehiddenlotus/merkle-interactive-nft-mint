@@ -32,7 +32,7 @@ contract MerkleInteractiveNFT is ERC721, Ownable {
 
     uint256 public maxMintAmountPerTx = 30; 
     uint256 public maxPerPresaleAddress = 9; // It is possible to use non-universal amounts for these limits with the merkle proofs
-    uint256 public maxPerFreesaleAddress = 1; // But I have them set up to be universal.
+    uint256 public maxPerFreesaleAddress = 1; // But I have them set up to be universal. These values must match in the script as well.
     uint256 public reserveCount;
     uint256 public reserveLimit = 888;
     
