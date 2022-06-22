@@ -65,7 +65,7 @@ contract MerkleNFT is ERC721, Ownable {
         freesale = true;
     }
 
-    modifier mintCompliance(uint256 mintCount) {
+    modifier mintCompliance(uint256 memory mintCount) {
         require(!paused, "The sale is paused.");
         require(mintCount > 0, "Mint count must be greater than 0.");
         require(
@@ -86,7 +86,7 @@ contract MerkleNFT is ERC721, Ownable {
 
     function mintPresale(
         address account,
-        uint256 mintCount,
+        uint256 memory mintCount,
         bytes32[] calldata merkleProof
     ) public payable mintCompliance(mintCount) {
         bytes32 node = keccak256(
@@ -108,7 +108,7 @@ contract MerkleNFT is ERC721, Ownable {
 
     function mintFreesale(
         address account,
-        uint256 mintCount,
+        uint256 memory mintCount,
         bytes32[] calldata merkleProof
     ) public mintCompliance(mintCount) {
         bytes32 node = keccak256(
@@ -128,7 +128,7 @@ contract MerkleNFT is ERC721, Ownable {
         freesaleClaimed[account] += mintCount;
     }
 
-    function mint(uint256 mintCount)
+    function mint(uint256 memory mintCount)
         public
         payable
         mintCompliance(mintCount)
@@ -138,7 +138,7 @@ contract MerkleNFT is ERC721, Ownable {
         _mintLoop(msg.sender, mintCount);
     }
 
-    function mintForAddress(uint256 mintCount, address _receiver)
+    function mintForAddress(uint256 memory mintCount, address _receiver)
         public
         mintCompliance(mintCount)
         onlyOwner
@@ -151,7 +151,7 @@ contract MerkleNFT is ERC721, Ownable {
         reserveCount += mintCount;
     }
 
-    function _mintLoop(address _receiver, uint256 mintAmounts)
+    function _mintLoop(address _receiver, uint256 memory mintAmounts)
         internal
     {
         for (uint256 i = 0; i < mintAmounts; i++) {
