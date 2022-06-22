@@ -4,6 +4,13 @@ const { ethers } = require("hardhat");
 
 const localChainId = "31337";
 
+const presaleRoot = "0x02b6fba50521a07f58a5756c529142445457eb0754bc763474ba37a1643f2a39";
+const freesaleRoot = "0x8c7dd9a7c64d3ee20375e00304fc82bb03ca4bc534c98199093b20356abc9753";
+const hiddenURI = "ipfs://QmavS626tVjSNgu4KkeqdUx2Mk5wgevwgwTqVzKUx4ZBbr/";
+
+const owner = "0x19BCF3b40086506e010593126FBA5407ba209DbB"; // testnet
+
+// USE THIS FOR DELAY
 // const sleep = (ms) =>
 //   new Promise((r) =>
 //     setTimeout(() => {
@@ -17,16 +24,20 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
   const { deployer } = await getNamedAccounts();
   const chainId = await getChainId();
 
+  //! CHANGE TO YOUR CONTRACT 
   await deploy("YourContract", {
     // Learn more about args here: https://www.npmjs.com/package/hardhat-deploy#deploymentsdeploy
     from: deployer,
     // args: [ "Hello", ethers.utils.parseEther("1.5") ],
+    // args: [ hiddenURI, presaleRoot, freesaleRoot ],    
+    args: [ hiddenURI ],    
     log: true,
     waitConfirmations: 5,
   });
 
   // Getting a previously deployed contract
-  const YourContract = await ethers.getContract("YourContract", deployer);
+  const YourContract = await ethers.getContract("YourContract", deployer); //! change
+  //! await YourContract.transferOwnership(owner);
   /*  await YourContract.setPurpose("Hello");
   
     To take ownership of yourContract using the ownable library uncomment next line and add the 
@@ -64,16 +75,16 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
 
   // You can also Verify your contracts with Etherscan here...
   // You don't want to verify on localhost
-  // try {
-  //   if (chainId !== localChainId) {
-  //     await run("verify:verify", {
-  //       address: YourContract.address,
-  //       contract: "contracts/YourContract.sol:YourContract",
-  //       constructorArguments: [],
-  //     });
-  //   }
-  // } catch (error) {
-  //   console.error(error);
-  // }
+  try {
+    if (chainId !== localChainId) {
+      await run("verify:verify", {
+        address: YourContract.address,
+        contract: "contracts/YourContract.sol:YourContract", //! change
+        constructorArguments: [],
+      });
+    }
+  } catch (error) {
+    console.error(error);
+  }
 };
-module.exports.tags = ["YourContract"];
+module.exports.tags = ["YourContract"]; //! change
